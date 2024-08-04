@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Support Chatbot</title>
+    <style>
+        body {
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+            font-family: sans-serif;
+        }
+
+        .page-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .chatbot-container {
+            background-color: #fff;
+            border-radius: 5px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-group input[type="text"], .input-group textarea {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            box-sizing: border-box;
+        }
+
+        .input-group button {
+            margin-left: 10px;
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .input-group button:hover {
+            background-color: #45a049;
+        }
+
+        textarea {
+            height: 100px;
+        }
+
+        .submit-button {
+            display: block;
+            margin: 0 auto;
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .submit-button:hover {
+            background-color: #45a049;
+        }
+
+        #response {
+            margin-top: 20px;
+            font-size: 16px;
+            text-align: center;
+        }
+
+        #speak-btn {
+            display: block;
+            margin: 10px auto 0;
+        }
+
+        .wave-animation {
+            display: none;
+            width: 100%;
+            height: 20px;
+            background: linear-gradient(to right, #4CAF50, #45a049);
+            animation: wave 1s infinite linear;
+        }
+
+        @keyframes wave {
+            0% {
+                background-position: 0 0;
+            }
+            100% {
+                background-position: 100% 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-container">
+        <div class="chatbot-container">
+            <h1>Customer Support </h1>
+            <form id="chat-form">
+                <div class="input-group">
+                    <input type="text" id="subject" placeholder="Enter Ticket Subject" required>
+                    <button type="button" id="start-subject-speech">🎙️♫♫</button>
+                </div>
+                <div class="input-group">
+                    <textarea id="description" placeholder="Enter Ticket Description" required></textarea>
+                    <button type="button" id="start-description-speech">️🎙️♫♫</button>
+                </div>
+                <button type="submit" class="submit-button">Submit</button>
+            </form>
+            <div id="response"></div>
+            <button id="speak-btn" style="display: none;">Hear Resolution</button>
+            <div class="wave-animation" id="wave-animation"></div>
+        </div>
+    </div>
+    <script>
+        // Initialize Speech Recognition
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+
+        // Function to handle speech input
+        function handleSpeechInput(inputFieldId) {
+            recognition.start();
+
+            // Show the wave animation
+            document.getElementById('wave-animation').style.display = 'block';
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById(inputFieldId).value = transcript;
+
+                // Hide the wave animation
+                document.getElementById('wave-animation').style.display = 'none';
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+
+                // Hide the wave animation
+                document.getElementById('wave-animation').style.display = 'none';
+            };
+        }
+
+        // Event listeners for speech buttons
+        document.getElementById('start-subject-speech').addEventListener('click', () => {
+            handleSpeechInput('subject');
+        });
+
+        document.getElementById('start-description-speech').addEventListener('click', () => {
+            handleSpeechInput('description');
+        });
+
+        // Form submission handling
+        document.getElementById('chat-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const subject = document.getElementById('subject').value;
+            const description = document.getElementById('description').value;
+
+            fetch('/predict', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ subject, description })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const predictionValue = parseFloat(data.confidence);
+
+                const resolutionText = 'Predicted Resolution: ' + data.resolution;
+                const predictionText = 'Confidence Score: ' + predictionValue.toFixed(2);
+                const sentimentText = 'Sentiment: ' + data.sentiment.charAt(0).toUpperCase() + data.sentiment.slice(1);
+
+                document.getElementById('response').innerText = resolutionText + '\n' + predictionText + '\n' + sentimentText;
+
+                // Display the speak button
+                const speakButton = document.getElementById('speak-btn');
+                speakButton.style.display = 'block';
+
+                // Attach speech synthesis event
+                speakButton.onclick = () => {
+                    const utterance = new SpeechSynthesisUtterance(resolutionText + ', ' + predictionText + ', ' + sentimentText);
+                    window.speechSynthesis.speak(utterance);
+                };
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        });
+    </script>
+</body>
+</html>
